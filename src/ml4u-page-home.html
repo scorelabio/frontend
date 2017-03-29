@@ -9,6 +9,8 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
 -->
 
 <link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="../bower_components/paper-card/paper-card.html">
+<link rel="import" href="components/research-paper-card.html">
 <link rel="import" href="shared-styles.html">
 
 <dom-module id="ml4u-page-home">
@@ -27,6 +29,14 @@ subject to an additional IP rights grant found at http://polymer.github.io/PATEN
       <p>Ut labores minimum atomorum pro. Laudem tibique ut has.</p>
       <p>Lorem ipsum dolor sit amet, per in nusquam nominavi periculis, sit elit oportere ea.Lorem ipsum dolor sit amet, per in nusquam nominavi periculis, sit elit oportere ea.Cu mei vide viris gloriatur, at populo eripuit sit.</p>
     </div>
+    
+    <research-paper-card
+      id="1"
+      title="Stochastic Variational Inference for Conjugate Exponential Models"
+      tags='[{"id": "1", "color": "red", "text": "ML"}]'
+      authors='[{"id": "1", "firstName": "Yee", "lastName": "Teh"}, {"id": "2", "firstName": "Laurent", "lastName": "Charlin"}]'
+    ></research-paper-card>
+    
   </template>
 
   <script>
