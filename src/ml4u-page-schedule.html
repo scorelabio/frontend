@@ -1,46 +1,44 @@
 <link rel="import" href="../bower_components/polymer/polymer.html">
 <link rel="import" href="../bower_components/paper-icon-button/paper-icon-button.html">
 <link rel="import" href="../bower_components/iron-icons/iron-icons.html">
+<link rel="import" href="../bower_components/iron-signals/iron-signals.html">
 <link rel="import" href="shared-styles.html">
+<link rel="import" href="ml4u-nav.html">
+<link rel="import" href="ml4u-list.html">
 
 <dom-module id="ml4u-page-schedule">
   <template>
     <style include="shared-styles">
-      :host {
-        display: block;
-        padding: 10px;
-      }
-
       paper-icon-button.favourite {
         color: GoldenRod;
         --paper-icon-button-ink-color: var(GoldenRod);
       }
     </style>
-
-    <div class="card">
-      <h1>Papers</h1>
-      <h2>Document1</h2>
-      <p>1Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Donec quam felis, ultricies nec.</p>
-      <paper-icon-button icon="bookmark" noink on-tap="b1t" title="add to bookmark" class$="{{fav1}}"></paper-icon-button>
-      <hr>
-      <h2>Document2</h2>
-      <p>Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis</p>
-      <paper-icon-button icon="bookmark" noink on-tap="b2t" title="add to bookmark" class$="{{fav2}}"></paper-icon-button>
-      <hr>
-      <h2>Document3</h2>
-      <p>Li Europan lingues es membres del sam familie. Lor separat existentie es un myth. Por scientie, musica, sport etc, litot Europa usa li sam vocabular. Li lingues differe solmen in li grammatica, li pronunciation e li plu commun vocabules.</p>
-      <paper-icon-button icon="bookmark" noink on-tap="b3t" title="add to bookmark" class$="{{fav3}}"></paper-icon-button>
-    </div>
-
-    <!--<paper-toast id="toast0" text="This toast auto-closes after 3 seconds"></paper-toast>-->
-
-
+    <iron-signals on-iron-signal-schedule="_onScheduleDataChanged"><iron-signals>
+    <ml4u-nav selected-index="{{selectedDay}}" tabs="[[_tabs]]" ></ml4u-nav>
+    <template is="dom-if" if="{{!showPosters}}">
+      <ml4u-list items="[[_items]]" selected-day="[[selectedDay]]"
+        selected-item={{selectedItem}} selected-filter-index=[[selectedFilterIndex]]
+        profile={{profile}} id-prefix="sched">
+      </ml4u-list>
+    </template>
+    <template is="dom-if" if="{{showPosters}}">
+      <ml4u-list items="[[_items]]" selected-day="[[selectedDay]]"
+        selected-item={{selectedItem}} selected-filter-index=[[selectedFilterIndex]]
+        profile={{profile}} id-prefix="posters" display-sub-sessions>
+      </ml4u-list>
+    </template>
   </template>
 
   <script>
   Polymer({
     is: 'ml4u-page-schedule',
     properties: {
+      route: Object,
+      ironRouteHash: {
+        type: String,
+        observer: '_onIronRouteHashChanged'
+      },
       username: {
         type: String,
         notify: true
@@ -50,47 +48,78 @@
         notify: true,
         observer: 'profileDataChanged'
       },
-      fav1: {
-        type: String,
-        value: ""
+      selectedItem: {
+        type:String,
+        notify: true
       },
-      fav2: {
-        type: String,
-        value: ""
+      selectedDay: {
+        type:Number,
+        observer: '_onSelectedDayChanged',
+        value: 0
       },
-      fav3: {
-        type: String,
-        value: ""
+      _tabs: {
+        type: Array,
+        value: []
+      },
+      _items: {
+        type: Array,
+        value: []
+      },
+      showPosters: {
+        type: Boolean,
+        value: false
       }
     },
     observers: [
       'favChanged(profileData.bookmarks.*)'
     ],
 
-    b1t: function() {this.buttonPressed(1);},
-    b2t: function() {this.buttonPressed(2);},
-    b3t: function() {this.buttonPressed(3);},
-
-    buttonPressed: function(itemId) {
-      console.log("buttonPressed called. profileData=");
-      console.log(this.profileData);
-      if(this.username == null) {
-        window.ml4u.sharedElements.papertoast.text = "Please login first.";
-        window.ml4u.sharedElements.papertoast.open();
-        return;
-      }
-
-      this.profileData.bookmarks = this.profileData.bookmarks || {};
-
-      if(this.profileData.bookmarks['item'+itemId]) {
-        this.set(['profileData.bookmarks','item'+ itemId], false);
-      }
-      else {
-        this.set(['profileData.bookmarks','item'+ itemId], true);
-      }
-      console.log(this.profileData.bookmarks);
+    _onIronRouteHashChanged: function(newVal) {
+      console.log("_onIronRouteHashChanged" + newVal);
+      console.log("_onIronRouteHashChanged" + typeof(newVal));
+      this.selectedDay = newVal == undefined ? 0 : Number(newVal);
     },
 
+    _onSelectedDayChanged: function(newVal, oldVal) {
+      console.log("_onSelectedDayChanged " + newVal + " " + oldVal);
+      if(newVal == oldVal)
+        return;
+      if(!this.showPosters)
+        this._items = window.ml4u.sharedElements.scheduleDataProvider.getSessionsSchedule(this.selectedDay);
+      else
+        this._items = window.ml4u.sharedElements.scheduleDataProvider.getPostersSchedule(this.selectedDay);
+    },
+
+    _onScheduleDataChanged: function(e) {
+      if(!this.showPosters) {
+        this._tabs = window.ml4u.sharedElements.scheduleDataProvider.getSessionsDaysArray();
+        this._items = window.ml4u.sharedElements.scheduleDataProvider.getSessionsSchedule(this.selectedDay);
+      }
+      else {
+        this._tabs = window.ml4u.sharedElements.scheduleDataProvider.getPostersDaysArray();
+        this._items = window.ml4u.sharedElements.scheduleDataProvider.getPostersSchedule(this.selectedDay);
+      }
+    },
+    ready: function() {
+      //this.selectedDay = this.ironRouteHash || '0';
+      //if(this.route !== undefined && this.route.__queryParams.itemid !== undefined)
+      //  this.selectedItem = this.route.__queryParams.itemid;
+
+      if(this._tabs.length==0) {
+        if(!this.showPosters)
+          this._tabs = window.ml4u.sharedElements.scheduleDataProvider.getSessionsDaysArray();
+        else
+          this._tabs = window.ml4u.sharedElements.scheduleDataProvider.getPostersDaysArray();
+      }
+    },
+
+    favChanged: function(e) {
+
+    },
+    profileDataChanged: function(e) {
+
+    }
+/*
     favChanged: function(e) {
       console.log("favChanged called with the following e:");
       console.log(e);
@@ -123,10 +152,29 @@
         this.fav3 = "";
       }
     },
+    buttonPressed: function(itemId) {
+      console.log("buttonPressed called. profileData=");
+      console.log(this.profileData);
+      if(this.username == null) {
+        window.ml4u.sharedElements.papertoast.text = "Please login first.";
+        window.ml4u.sharedElements.papertoast.open();
+        return;
+      }
+
+      this.profileData.bookmarks = this.profileData.bookmarks || {};
+
+      if(this.profileData.bookmarks['item'+itemId]) {
+        this.set(['profileData.bookmarks','item'+ itemId], false);
+      }
+      else {
+        this.set(['profileData.bookmarks','item'+ itemId], true);
+      }
+      console.log(this.profileData.bookmarks);
+    },
     profileDataChanged: function(e) {
       console.log("%%%%%%%%%%%%%%%%profileDataChanged called");
       console.log(e);
-    }
+    }*/
 
   });
 

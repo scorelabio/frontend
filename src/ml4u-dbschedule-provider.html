@@ -1,0 +1,125 @@
+<link rel="import" href="../bower_components/polymer/polymer.html">
+<link rel="import" href="../bower_components/app-pouchdb/pouchdb.html">
+<link rel="import" href="ml4u-pouchdb/ml4u-pouchdb-document.html">
+<link rel="import" href="../bower_components/app-pouchdb/app-pouchdb-conflict-resolution.html">
+
+<dom-module id="ml4u-dbschedule-provider">
+  <template>
+    <ml4u-pouchdb-document
+      db-name="schedule"
+      doc-id="schedule"
+      data="{{scheduleData}}">
+    </ml4u-pouchdb-document>
+
+  </template>
+  <script>
+    Polymer({
+      is: 'ml4u-dbschedule-provider',
+      properties: {
+        scheduleData: {
+          type: Object,
+          notify: true
+        },
+        isReady: {
+          type: Number,
+          notify: true
+        }
+      },
+      observers: [
+        'scheduleDataChanged(scheduleData.*)'
+      ],
+      scheduleDataChanged(e) {
+        if(this.scheduleData == undefined || this.scheduleData._rev == undefined)
+          return;
+        if(!this.isReady) {
+          this.isReady = 1;
+        }
+        console.log("signalling that scheduleData has changed");
+        console.log(this.scheduleData);
+        this.fire('iron-signal', {name: 'schedule', data: null});
+      },
+      getSessionsSchedule: function(day) {
+        if(this.scheduleData == undefined || this.scheduleData.sessions == undefined)
+          return [];
+        return this.scheduleData.sessions[day];
+      },
+      getPostersSchedule: function(day) {
+        if(this.scheduleData == undefined || this.scheduleData.sessions == undefined)
+          return [];
+        var posterSessionsForTheDay = new Array();
+        var posterSessionIds = this.scheduleData.posterSessionsByDay[day].posterSessionsIds;
+        //Note: the number of poster sessons per day is 1 or 2
+        //therefore, the following loop won't execute many times.
+        for(var i=0; i<posterSessionIds.length; i++) {
+          var currentPosterSessionId = posterSessionIds[i];
+          var currentPosterSessionIdMapping = this.scheduleData.sessionIdToIndexMapping[currentPosterSessionId];
+          var currentPosterSession = this.scheduleData.sessions[currentPosterSessionIdMapping.indexInSessionsArray][currentPosterSessionIdMapping.indexInRelevantDaySessionArray];
+          posterSessionsForTheDay.push(currentPosterSession);
+        }
+        return posterSessionsForTheDay;
+      },
+      getItem: function(itemId) {
+        console.log("getItem called with itemId" + itemId);
+        if(this.scheduleData == undefined || this.scheduleData.items == undefined)
+          return {};
+        var orgItem =  this.scheduleData.items[itemId]
+        var item = {};
+        item.title = orgItem.title;
+        item.description = orgItem.description;
+        item.authors = new Array();
+        for(var i in orgItem.authorIds) {
+          var authorId = orgItem.authorIds[i];
+          var person = this.scheduleData.people[authorId];
+          item.authors.push(person);
+        }
+        return item;
+      },
+      getSessionsDaysArray: function() {
+        if(this.scheduleData == undefined || this.scheduleData.dayList == undefined)
+          return [];
+        return this.scheduleData.dayList;
+      },
+      getPostersDaysArray: function() {
+        if(this.scheduleData == undefined || this.scheduleData.dayList == undefined)
+          return [];
+        var posterSessionsByDay = this.scheduleData.posterSessionsByDay;
+        var daysCount = posterSessionsByDay.length;
+        var dayList = new Array();
+        for(var i=0; i<daysCount; ++i){
+          dayList.push(posterSessionsByDay[i].dayString);
+        }
+        return dayList;
+      },
+      created: function() {
+        window.ml4u = window.ml4u || {};
+        window.ml4u.schedDB_local = new PouchDB('schedule');
+        window.ml4u.shedDB_remote = new PouchDB('https://lazar:letmein123@icml.papro.org.uk/couchdb/schedule');
+
+        window.ml4u.shedDB_remote.replicate.to(window.ml4u.schedDB_local).on('complete', function () {
+          window.ml4u.helpervars = window.ml4u.helpervars || {};
+          window.ml4u.helpervars.dbschedulesynced = true;
+          if(window.ml4u.helpervars.ml4uappcreated) {
+              //window.ml4u.helpervars.ml4u_app_element.removeLoadscreen();
+          }
+          window.ml4u.schedDB_local.close();
+          window.ml4u.shedDB_remote.close();
+        }.bind(this)).on('error', function (err) {
+          // boo, something went wrong!
+        });
+
+        //window.db = new PouchDB('http://@52.178.198.66:5984/auth', {skipSetup: true});
+        /*
+        db.login('jan', 'apple', function (err, response) {
+          if (err) {
+            if (err.name === 'unauthorized') {
+              console.log("name or pass incorrect");
+            } else {
+              console.log("something went wrong during authentication");
+            }
+          }
+
+        });*/
+      }
+    });
+  </script>
+</dom-module>
