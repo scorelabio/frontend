@@ -1,25 +1,38 @@
 <link rel="import" href="../bower_components/polymer/polymer.html">
+<!--TODO: note that the current app-pouchdb element doesn't load the minified version.-->
+<script src="../bower_components/pouchdb/dist/pouchdb.min.js"></script>
+<script src="../bower_components/pouchdb-authentication/dist/pouchdb.authentication.min.js"></script>
 <link rel="import" href="ml4u-pouchdb/ml4u-pouchdb-sync.html">
-<link rel="import" href="ml4u-pouchdb/ml4u-pouchdb-document.html">
 <link rel="import" href="../bower_components/app-pouchdb/app-pouchdb-conflict-resolution.html">
+<link rel="import" href="../bower_components/app-pouchdb/app-pouchdb-document.html">
+
 
 <dom-module id="ml4u-user-profile">
   <template>
     <ml4u-pouchdb-sync
         id="sync1"
-        source="https://lazar:letmein123@icml.papro.org.uk/couchdb/users"
-        target="users"
+        source="http://localhost:5985/{{username}}"
+        target="{{username}}"
         bidirectional>
     </ml4u-pouchdb-sync>
     <app-pouchdb-conflict-resolution
       strategy="lastWriteWins">
     </app-pouchdb-conflict-resolution>
-    <ml4u-pouchdb-document
+    <!-- <ml4u-pouchdb-document
       id="ml4upouchdbdoc1"
-      db-name="users"
-      doc-id="{{username}}"
+      db-name="{{username}}"
+      doc-id="data"
       data="{{profileData}}">
-    </ml4u-pouchdb-document>
+    </ml4u-pouchdb-document> -->
+
+    <template is="dom-repeat" items="{{collectonOfDocumentsToRetrieve}}">
+      <app-pouchdb-document
+        db-name="{{username}}"
+        doc-id="data"
+        data="{{profileData}}">
+      </app-pouchdb-document>
+    </template>
+
   </template>
 
   <script>
@@ -35,15 +48,49 @@
           type: Object,
           notify: true,
           observer: '_dataChanged'
+        },
+        authDatabase: Object,
+
+        collectonOfDocumentsToRetrieve: {
+          type: Object,
+          notify: true,
+          value: []
         }
       },
       _usernameChanged: function() {
-      }
-      ,
+        if(this.username  != null)
+          this.collectonOfDocumentsToRetrieve = ["data"];
+        else {
+          this.collectonOfDocumentsToRetrieve = [];
+          this.profileData = {};
+        }
+      },
       _dataChanged: function() {
+        console.log("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD");
+        console.log("_dataChanged called");
+        console.log(this.profileData);
+      },
+      create: function() {
+        var PouchDB = require("pouchdb");
+        PouchDB.plugin(require('pouchdb-authentication'));
+      },
+      ready: function() {
+        this.authDatabase = new PouchDB('http://localhost:5985/basic', {skipSetup: true});
+      },
+      login: function(username, password, callbackfn) {
+        this.authDatabase.login(username, password, callbackfn);
       },
       logout: function() {
-        this.username = null;
+        this.authDatabase.logout(function (err, response) {
+          if (err) {
+            console.log("error during logout:");
+            console.log(err);
+            // network error
+            return;
+          }
+          this.username = null;
+        }.bind(this));
+
         //this.$.sync1.cancelSync();
       }
     });
